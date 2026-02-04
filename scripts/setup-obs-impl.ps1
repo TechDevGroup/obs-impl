@@ -133,30 +133,36 @@ Push-Location $InstallDir
 Write-Status "Initializing submodules..."
 git submodule update --init --recursive
 
-# Create build directory
-$BuildDir = Join-Path $InstallDir "build"
-if (-not (Test-Path $BuildDir)) {
-    New-Item -ItemType Directory -Path $BuildDir | Out-Null
-}
-
 # Configure with CMake
 Write-Status "Configuring build with CMake..."
-Push-Location $BuildDir
 
 # Use CMake presets if available, otherwise manual config
-if (Test-Path (Join-Path $InstallDir "CMakePresets.json")) {
-    cmake --preset windows-x64 ..
+$UsePreset = Test-Path (Join-Path $InstallDir "CMakePresets.json")
+
+if ($UsePreset) {
+    # Presets define their own build directory (build_x64)
+    cmake --preset windows-x64
+    $BuildDir = Join-Path $InstallDir "build_x64"
 } else {
+    # Manual config uses 'build' directory
+    $BuildDir = Join-Path $InstallDir "build"
+    if (-not (Test-Path $BuildDir)) {
+        New-Item -ItemType Directory -Path $BuildDir | Out-Null
+    }
+    Push-Location $BuildDir
     cmake -G "Visual Studio 17 2022" -A x64 `
         -DCMAKE_BUILD_TYPE=$BuildType `
         ..
+    Pop-Location
 }
 
 # Build
 Write-Status "Building OBS-Impl ($BuildType)..."
-cmake --build . --config $BuildType --parallel
-
-Pop-Location
+if ($UsePreset) {
+    cmake --build --preset windows-x64 --config $BuildType --parallel
+} else {
+    cmake --build $BuildDir --config $BuildType --parallel
+}
 
 # Output location
 $OutputDir = Join-Path $BuildDir "rundir\$BuildType"
