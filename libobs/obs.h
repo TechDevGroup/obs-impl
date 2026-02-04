@@ -53,6 +53,7 @@ struct obs_module_metadata;
 struct obs_fader;
 struct obs_volmeter;
 struct obs_canvas;
+struct obs_stage;
 
 typedef struct obs_context_data obs_object_t;
 typedef struct obs_display obs_display_t;
@@ -69,6 +70,7 @@ typedef struct obs_module_metadata obs_module_metadata_t;
 typedef struct obs_fader obs_fader_t;
 typedef struct obs_volmeter obs_volmeter_t;
 typedef struct obs_canvas obs_canvas_t;
+typedef struct obs_stage obs_stage_t;
 
 typedef struct obs_weak_object obs_weak_object_t;
 typedef struct obs_weak_source obs_weak_source_t;
@@ -76,6 +78,7 @@ typedef struct obs_weak_output obs_weak_output_t;
 typedef struct obs_weak_encoder obs_weak_encoder_t;
 typedef struct obs_weak_service obs_weak_service_t;
 typedef struct obs_weak_canvas obs_weak_canvas_t;
+typedef struct obs_weak_stage obs_weak_stage_t;
 
 #include "obs-missing-files.h"
 #include "obs-source.h"
@@ -2688,6 +2691,109 @@ EXPORT video_t *obs_canvas_get_video(const obs_canvas_t *canvas);
 EXPORT bool obs_canvas_get_video_info(const obs_canvas_t *canvas, struct obs_video_info *ovi);
 /** Renders the sources of this canvas's view context */
 EXPORT void obs_canvas_render(obs_canvas_t *canvas);
+
+/* ------------------------------------------------------------------------- */
+/* Stages */
+
+#include "obs-stage.h"
+
+/** Creates a new stage with the specified video info */
+EXPORT obs_stage_t *obs_stage_create(const char *name, struct obs_video_info *ovi, uint32_t flags);
+
+/** Creates a new private stage */
+EXPORT obs_stage_t *obs_stage_create_private(const char *name, struct obs_video_info *ovi, uint32_t flags);
+
+/* Reference counting */
+/** Get a strong reference to a stage */
+EXPORT obs_stage_t *obs_stage_get_ref(obs_stage_t *stage);
+
+/** Release a strong reference to a stage */
+EXPORT void obs_stage_release(obs_stage_t *stage);
+
+/** Add a weak reference */
+EXPORT void obs_weak_stage_addref(obs_weak_stage_t *weak);
+
+/** Release a weak reference */
+EXPORT void obs_weak_stage_release(obs_weak_stage_t *weak);
+
+/** Get weak reference from strong reference */
+EXPORT obs_weak_stage_t *obs_stage_get_weak_stage(obs_stage_t *stage);
+
+/** Get strong reference from weak reference */
+EXPORT obs_stage_t *obs_weak_stage_get_stage(obs_weak_stage_t *weak);
+
+/* Properties */
+/** Get stage name */
+EXPORT const char *obs_stage_get_name(const obs_stage_t *stage);
+
+/** Set stage name */
+EXPORT void obs_stage_set_name(obs_stage_t *stage, const char *name);
+
+/** Get stage flags */
+EXPORT uint32_t obs_stage_get_flags(const obs_stage_t *stage);
+
+/** Get stage signal handler */
+EXPORT signal_handler_t *obs_stage_get_signal_handler(obs_stage_t *stage);
+
+/* Canvas access */
+/** Get the underlying canvas for this stage */
+EXPORT obs_canvas_t *obs_stage_get_canvas(obs_stage_t *stage);
+
+/** Get video output for this stage */
+EXPORT video_t *obs_stage_get_video(obs_stage_t *stage);
+
+/** Get video info for this stage */
+EXPORT bool obs_stage_get_video_info(obs_stage_t *stage, struct obs_video_info *ovi);
+
+/* Scene management */
+/** Set the active scene for this stage (sets channel 0) */
+EXPORT void obs_stage_set_scene(obs_stage_t *stage, obs_scene_t *scene);
+
+/** Get the active scene source for this stage */
+EXPORT obs_source_t *obs_stage_get_scene_source(obs_stage_t *stage);
+
+/* Output management */
+/** Add an output to this stage */
+EXPORT bool obs_stage_add_output(obs_stage_t *stage, obs_output_t *output);
+
+/** Remove an output from this stage */
+EXPORT bool obs_stage_remove_output(obs_stage_t *stage, obs_output_t *output);
+
+/** Get number of outputs assigned to this stage */
+EXPORT size_t obs_stage_get_output_count(const obs_stage_t *stage);
+
+/** Get output at index */
+EXPORT obs_output_t *obs_stage_get_output(const obs_stage_t *stage, size_t idx);
+
+/* Output control */
+/** Start a specific output */
+EXPORT bool obs_stage_start_output(obs_stage_t *stage, size_t idx);
+
+/** Stop a specific output */
+EXPORT void obs_stage_stop_output(obs_stage_t *stage, size_t idx, bool force);
+
+/** Start all outputs for this stage */
+EXPORT void obs_stage_start_all_outputs(obs_stage_t *stage);
+
+/** Stop all outputs for this stage */
+EXPORT void obs_stage_stop_all_outputs(obs_stage_t *stage, bool force);
+
+/** Check if any output is active */
+EXPORT bool obs_stage_any_output_active(const obs_stage_t *stage);
+
+/* Enumeration */
+/** Enumerate all stages */
+EXPORT void obs_enum_stages(bool (*enum_proc)(void *, obs_stage_t *), void *param);
+
+/** Get a stage by name */
+EXPORT obs_stage_t *obs_get_stage_by_name(const char *name);
+
+/* Saving/Loading */
+/** Save stage to data object */
+EXPORT obs_data_t *obs_save_stage(obs_stage_t *stage);
+
+/** Load stage from data object */
+EXPORT obs_stage_t *obs_load_stage(obs_data_t *data);
 
 #ifdef __cplusplus
 }

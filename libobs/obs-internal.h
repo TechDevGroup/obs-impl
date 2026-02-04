@@ -494,6 +494,10 @@ struct obs_core_data {
 	/* Main canvas, guaranteed to exist for the lifetime of the program */
 	struct obs_canvas *main_canvas;
 
+	/* Stages (linked list) */
+	struct obs_stage *first_stage;
+	pthread_mutex_t stages_mutex;
+
 	long long unnamed_index;
 
 	obs_data_t *private_data;
@@ -744,6 +748,32 @@ extern bool obs_canvas_reset_video_internal(obs_canvas_t *canvas, struct obs_vid
 extern void obs_canvas_insert_source(obs_canvas_t *canvas, obs_source_t *source);
 extern void obs_canvas_remove_source(obs_source_t *source);
 extern void obs_canvas_rename_source(obs_source_t *source, const char *name);
+
+/* ------------------------------------------------------------------------- */
+/* stages */
+
+struct obs_weak_stage {
+	struct obs_weak_ref ref;
+	struct obs_stage *stage;
+};
+
+struct obs_stage {
+	struct obs_context_data context;
+
+	uint32_t flags;
+	obs_canvas_t *canvas;
+
+	/* Outputs assigned to this stage */
+	DARRAY(obs_output_t *) outputs;
+	pthread_mutex_t outputs_mutex;
+
+	/* Linked list pointers */
+	struct obs_stage *next;
+	struct obs_stage **prev_next;
+};
+
+extern void obs_stage_destroy(obs_stage_t *stage);
+extern void obs_free_stages(void);
 
 /* ------------------------------------------------------------------------- */
 /* sources  */

@@ -986,8 +986,11 @@ static bool obs_init_data(void)
 		goto fail;
 	if (pthread_mutex_init_recursive(&obs->data.canvases_mutex) != 0)
 		goto fail;
+	if (pthread_mutex_init_recursive(&obs->data.stages_mutex) != 0)
+		goto fail;
 
 	data->sources = NULL;
+	data->first_stage = NULL;
 	data->public_sources = NULL;
 	data->canvases = NULL;
 	data->named_canvases = NULL;
@@ -1041,6 +1044,9 @@ static void obs_free_data(void)
 
 	blog(LOG_INFO, "Freeing OBS context data");
 
+	/* Free stages first (they hold output references) */
+	obs_free_stages();
+
 	/* Free main canvas */
 	obs_canvas_release(data->main_canvas);
 
@@ -1064,6 +1070,7 @@ static void obs_free_data(void)
 	pthread_mutex_destroy(&data->services_mutex);
 	pthread_mutex_destroy(&data->draw_callbacks_mutex);
 	pthread_mutex_destroy(&data->canvases_mutex);
+	pthread_mutex_destroy(&data->stages_mutex);
 	da_free(data->draw_callbacks);
 	da_free(data->rendered_callbacks);
 	da_free(data->tick_callbacks);

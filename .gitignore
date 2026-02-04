@@ -31,6 +31,8 @@
 !COPYING
 !INSTALL
 !README.rst
+!CLAUDE.md
+!/.claude
 
 # Exclude lock files
 *.lock.json

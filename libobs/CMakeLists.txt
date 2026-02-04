@@ -67,6 +67,8 @@ target_sources(
     obs-service.h
     obs-source-deinterlace.c
     obs-source-transition.c
+    obs-stage.c
+    obs-stage.h
     obs-source.c
     obs-source.h
     obs-video-gpu-encode.c
@@ -321,6 +323,7 @@ set(
   obs-properties.h
   obs-service.h
   obs-source.h
+  obs-stage.h
   obs.h
   obs.hpp
   util/array-serializer.h
