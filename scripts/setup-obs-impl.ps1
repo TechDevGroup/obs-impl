@@ -67,6 +67,45 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 
+# Check for Visual Studio 2022
+function Test-VisualStudio {
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    if (Test-Path $vswhere) {
+        $vsPath = & $vswhere -version "[17.0,18.0)" -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
+        return [bool]$vsPath
+    }
+    # Fallback: check common paths
+    $paths = @(
+        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat",
+        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat",
+        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat",
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+    )
+    foreach ($p in $paths) {
+        if (Test-Path $p) { return $true }
+    }
+    return $false
+}
+
+if (-not (Test-VisualStudio)) {
+    Write-Host "Visual Studio 2022 with C++ tools not found." -ForegroundColor Yellow
+    if (Test-Command "winget") {
+        Write-Host "Installing Visual Studio 2022 Build Tools via winget..." -ForegroundColor Yellow
+        Write-Host "This may take a while..." -ForegroundColor Yellow
+        winget install --id Microsoft.VisualStudio.2022.BuildTools --accept-source-agreements --accept-package-agreements --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621"
+
+        if (-not (Test-VisualStudio)) {
+            Write-Host "Visual Studio Build Tools installation may require a restart." -ForegroundColor Yellow
+            Write-Host "Please restart your computer and run this script again." -ForegroundColor Red
+            exit 1
+        }
+    } else {
+        Write-Host "Please install Visual Studio 2022 with C++ desktop development workload:" -ForegroundColor Red
+        Write-Host "  https://visualstudio.microsoft.com/downloads/" -ForegroundColor Red
+        exit 1
+    }
+}
+
 Write-Host "All prerequisites found." -ForegroundColor Green
 
 # Clone or update repository
