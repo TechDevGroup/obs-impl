@@ -33,6 +33,7 @@
 !README.rst
 !CLAUDE.md
 !/.claude
+!/scripts
 
 # Exclude lock files
 *.lock.json
