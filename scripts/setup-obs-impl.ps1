@@ -109,9 +109,30 @@ if (-not (Test-VisualStudio)) {
     }
 } else {
     Write-Host "Visual Studio 2022 found." -ForegroundColor Green
-    # Ensure ATL is installed (required for OBS build)
-    Write-Host "Ensuring ATL component is installed..." -ForegroundColor Yellow
-    winget install --id Microsoft.VisualStudio.2022.BuildTools --accept-source-agreements --accept-package-agreements --override "--wait --passive --add Microsoft.VisualStudio.Component.VC.ATL" 2>$null
+}
+
+# Always ensure ATL is installed (required for OBS build)
+Write-Host "Ensuring ATL component is installed..." -ForegroundColor Yellow
+$vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+if (Test-Path $vsInstaller) {
+    # Use VS Installer directly - more reliable than winget for adding components
+    $proc = Start-Process -FilePath $vsInstaller -ArgumentList "modify", "--installPath", "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools", "--add", "Microsoft.VisualStudio.Component.VC.ATL", "--quiet", "--wait" -Wait -PassThru -NoNewWindow
+    if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
+        Write-Host "ATL component ready." -ForegroundColor Green
+    } else {
+        # Try Community/Professional/Enterprise editions
+        $editions = @("Community", "Professional", "Enterprise")
+        foreach ($edition in $editions) {
+            $editionPath = "${env:ProgramFiles}\Microsoft Visual Studio\2022\$edition"
+            if (Test-Path $editionPath) {
+                Start-Process -FilePath $vsInstaller -ArgumentList "modify", "--installPath", $editionPath, "--add", "Microsoft.VisualStudio.Component.VC.ATL", "--quiet", "--wait" -Wait -NoNewWindow
+                break
+            }
+        }
+    }
+} else {
+    # Fallback to winget
+    winget install --id Microsoft.VisualStudio.2022.BuildTools --accept-source-agreements --accept-package-agreements --override "--wait --passive --add Microsoft.VisualStudio.Component.VC.ATL"
 }
 
 Write-Host "All prerequisites found." -ForegroundColor Green
