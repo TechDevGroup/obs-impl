@@ -93,7 +93,7 @@ if (-not (Test-VisualStudio)) {
     if (Test-Command "winget") {
         Write-Host "Installing Visual Studio 2022 Build Tools via winget..." -ForegroundColor Yellow
         Write-Host "This will take 10-20 minutes..." -ForegroundColor Yellow
-        $installResult = winget install --id Microsoft.VisualStudio.2022.BuildTools --accept-source-agreements --accept-package-agreements --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621"
+        $installResult = winget install --id Microsoft.VisualStudio.2022.BuildTools --accept-source-agreements --accept-package-agreements --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621 --add Microsoft.VisualStudio.Component.VC.ATL"
 
         Write-Host "VS Build Tools installed. Testing..." -ForegroundColor Yellow
         if (-not (Test-VisualStudio)) {
