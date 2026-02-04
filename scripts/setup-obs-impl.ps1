@@ -164,15 +164,42 @@ if ($UsePreset) {
     cmake --build $BuildDir --config $BuildType --parallel
 }
 
-# Output location
-$OutputDir = Join-Path $BuildDir "rundir\$BuildType"
-$ObsExe = Join-Path $OutputDir "bin\64bit\obs64.exe"
+# Find executable - search common locations
+$ObsExe = $null
+$SearchPaths = @(
+    (Join-Path $BuildDir "rundir\$BuildType\bin\64bit\obs64.exe"),
+    (Join-Path $InstallDir "build_x64\rundir\$BuildType\bin\64bit\obs64.exe"),
+    (Join-Path $InstallDir "build\rundir\$BuildType\bin\64bit\obs64.exe")
+)
+
+foreach ($path in $SearchPaths) {
+    if (Test-Path $path) {
+        $ObsExe = $path
+        break
+    }
+}
+
+# Fallback: search recursively
+if (-not $ObsExe) {
+    $found = Get-ChildItem -Path $InstallDir -Recurse -Filter "obs64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($found) { $ObsExe = $found.FullName }
+}
 
 Write-Status "Build complete!"
-Write-Host "Output directory: $OutputDir" -ForegroundColor Green
 
-if (Test-Path $ObsExe) {
+if ($ObsExe) {
     Write-Host "Executable: $ObsExe" -ForegroundColor Green
+
+    # Create desktop shortcut
+    $Desktop = [Environment]::GetFolderPath("Desktop")
+    $ShortcutPath = Join-Path $Desktop "OBS-Impl.lnk"
+    $WshShell = New-Object -ComObject WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
+    $Shortcut.TargetPath = $ObsExe
+    $Shortcut.WorkingDirectory = Split-Path $ObsExe
+    $Shortcut.Description = "OBS-Impl Multi-Output Stages"
+    $Shortcut.Save()
+    Write-Host "Desktop shortcut created: $ShortcutPath" -ForegroundColor Green
 
     if ($RunAfterBuild) {
         Write-Status "Launching OBS-Impl..."
@@ -182,8 +209,8 @@ if (Test-Path $ObsExe) {
         Write-Host "  & `"$ObsExe`""
     }
 } else {
-    Write-Host "Note: obs64.exe not found at expected location." -ForegroundColor Yellow
-    Write-Host "Check $OutputDir for build output."
+    Write-Host "Note: obs64.exe not found. Build may have failed." -ForegroundColor Yellow
+    Write-Host "Check build output in: $BuildDir" -ForegroundColor Yellow
 }
 
 Pop-Location
