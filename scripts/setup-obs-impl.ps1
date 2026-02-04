@@ -113,25 +113,45 @@ if (-not (Test-VisualStudio)) {
 
 # Always ensure ATL is installed (required for OBS build)
 Write-Host "Ensuring ATL component is installed..." -ForegroundColor Yellow
+
+# Find VS installation using vswhere
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$vsInstallPath = $null
+
+if (Test-Path $vswhere) {
+    $vsInstallPath = & $vswhere -version "[17.0,18.0)" -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null | Select-Object -First 1
+}
+
+# Fallback paths if vswhere fails
+if (-not $vsInstallPath) {
+    $searchPaths = @(
+        "${env:ProgramFiles}\Microsoft Visual Studio\2022\BuildTools",
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools",
+        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community",
+        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional",
+        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise"
+    )
+    foreach ($path in $searchPaths) {
+        if (Test-Path $path) {
+            $vsInstallPath = $path
+            break
+        }
+    }
+}
+
 $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
-if (Test-Path $vsInstaller) {
-    # Use VS Installer directly - more reliable than winget for adding components
-    $proc = Start-Process -FilePath $vsInstaller -ArgumentList "modify", "--installPath", "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools", "--add", "Microsoft.VisualStudio.Component.VC.ATL", "--quiet", "--wait" -Wait -PassThru -NoNewWindow
+if ($vsInstallPath -and (Test-Path $vsInstaller)) {
+    Write-Host "Found VS at: $vsInstallPath" -ForegroundColor Cyan
+    Write-Host "Adding ATL component (this may take a few minutes)..." -ForegroundColor Yellow
+    $proc = Start-Process -FilePath $vsInstaller -ArgumentList "modify", "--installPath", "`"$vsInstallPath`"", "--add", "Microsoft.VisualStudio.Component.VC.ATL", "--quiet", "--wait" -Wait -PassThru
     if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
         Write-Host "ATL component ready." -ForegroundColor Green
     } else {
-        # Try Community/Professional/Enterprise editions
-        $editions = @("Community", "Professional", "Enterprise")
-        foreach ($edition in $editions) {
-            $editionPath = "${env:ProgramFiles}\Microsoft Visual Studio\2022\$edition"
-            if (Test-Path $editionPath) {
-                Start-Process -FilePath $vsInstaller -ArgumentList "modify", "--installPath", $editionPath, "--add", "Microsoft.VisualStudio.Component.VC.ATL", "--quiet", "--wait" -Wait -NoNewWindow
-                break
-            }
-        }
+        Write-Host "ATL install returned code $($proc.ExitCode) - may already be installed or requires elevation." -ForegroundColor Yellow
     }
 } else {
     # Fallback to winget
+    Write-Host "Using winget to install ATL..." -ForegroundColor Yellow
     winget install --id Microsoft.VisualStudio.2022.BuildTools --accept-source-agreements --accept-package-agreements --override "--wait --passive --add Microsoft.VisualStudio.Component.VC.ATL"
 }
 
