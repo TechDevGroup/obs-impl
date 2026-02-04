@@ -21,20 +21,53 @@ function Test-Command {
     return [bool](Get-Command $Command -ErrorAction SilentlyContinue)
 }
 
-# Check prerequisites
+# Check prerequisites and auto-install if possible
 Write-Status "Checking prerequisites..."
 
+function Install-WithWinget {
+    param([string]$PackageId, [string]$Name)
+
+    if (-not (Test-Command "winget")) {
+        Write-Host "winget not available. Please install $Name manually." -ForegroundColor Red
+        return $false
+    }
+
+    Write-Host "Installing $Name via winget..." -ForegroundColor Yellow
+    winget install --id $PackageId --accept-source-agreements --accept-package-agreements
+
+    # Refresh PATH
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    return $true
+}
+
+if (-not (Test-Command "git")) {
+    Write-Host "Git not found." -ForegroundColor Yellow
+    if (-not (Install-WithWinget "Git.Git" "Git")) {
+        Write-Host "  Install from: https://git-scm.com/download/win" -ForegroundColor Red
+        exit 1
+    }
+}
+
+if (-not (Test-Command "cmake")) {
+    Write-Host "CMake not found." -ForegroundColor Yellow
+    if (-not (Install-WithWinget "Kitware.CMake" "CMake")) {
+        Write-Host "  Install from: https://cmake.org/download/" -ForegroundColor Red
+        exit 1
+    }
+}
+
+# Verify after install attempts
 $missing = @()
 if (-not (Test-Command "git")) { $missing += "git" }
 if (-not (Test-Command "cmake")) { $missing += "cmake" }
 
 if ($missing.Count -gt 0) {
-    Write-Host "Missing required tools: $($missing -join ', ')" -ForegroundColor Red
-    Write-Host "Please install them and try again."
-    Write-Host "  - Git: https://git-scm.com/download/win"
-    Write-Host "  - CMake: https://cmake.org/download/"
+    Write-Host "Still missing: $($missing -join ', ')" -ForegroundColor Red
+    Write-Host "Please restart your terminal after installation and try again."
     exit 1
 }
+
+Write-Host "All prerequisites found." -ForegroundColor Green
 
 # Clone or update repository
 if (-not $BuildOnly) {
