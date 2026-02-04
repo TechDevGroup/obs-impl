@@ -67,43 +67,48 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 
-# Check for Visual Studio 2022
+# Check for Visual Studio 2022 using cmake itself
 function Test-VisualStudio {
-    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    if (Test-Path $vswhere) {
-        $vsPath = & $vswhere -version "[17.0,18.0)" -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
-        return [bool]$vsPath
+    $testDir = Join-Path $env:TEMP "vs-test-$(Get-Random)"
+    New-Item -ItemType Directory -Path $testDir -Force | Out-Null
+    try {
+        Push-Location $testDir
+        # Create minimal CMakeLists.txt
+        "cmake_minimum_required(VERSION 3.16)`nproject(test)" | Out-File -FilePath "CMakeLists.txt" -Encoding utf8
+        # Try to configure with VS 2022
+        $result = cmake -G "Visual Studio 17 2022" -A x64 . 2>&1
+        Pop-Location
+        return $LASTEXITCODE -eq 0
+    } catch {
+        Pop-Location
+        return $false
+    } finally {
+        Remove-Item -Path $testDir -Recurse -Force -ErrorAction SilentlyContinue
     }
-    # Fallback: check common paths
-    $paths = @(
-        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat",
-        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat",
-        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat",
-        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
-    )
-    foreach ($p in $paths) {
-        if (Test-Path $p) { return $true }
-    }
-    return $false
 }
 
+Write-Host "Checking for Visual Studio 2022..." -ForegroundColor Yellow
 if (-not (Test-VisualStudio)) {
     Write-Host "Visual Studio 2022 with C++ tools not found." -ForegroundColor Yellow
     if (Test-Command "winget") {
         Write-Host "Installing Visual Studio 2022 Build Tools via winget..." -ForegroundColor Yellow
-        Write-Host "This may take a while..." -ForegroundColor Yellow
-        winget install --id Microsoft.VisualStudio.2022.BuildTools --accept-source-agreements --accept-package-agreements --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621"
+        Write-Host "This will take 10-20 minutes..." -ForegroundColor Yellow
+        $installResult = winget install --id Microsoft.VisualStudio.2022.BuildTools --accept-source-agreements --accept-package-agreements --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621"
 
+        Write-Host "VS Build Tools installed. Testing..." -ForegroundColor Yellow
         if (-not (Test-VisualStudio)) {
-            Write-Host "Visual Studio Build Tools installation may require a restart." -ForegroundColor Yellow
+            Write-Host "Visual Studio Build Tools installed but CMake cannot find it." -ForegroundColor Red
             Write-Host "Please restart your computer and run this script again." -ForegroundColor Red
             exit 1
         }
+        Write-Host "Visual Studio 2022 Build Tools ready." -ForegroundColor Green
     } else {
         Write-Host "Please install Visual Studio 2022 with C++ desktop development workload:" -ForegroundColor Red
         Write-Host "  https://visualstudio.microsoft.com/downloads/" -ForegroundColor Red
         exit 1
     }
+} else {
+    Write-Host "Visual Studio 2022 found." -ForegroundColor Green
 }
 
 Write-Host "All prerequisites found." -ForegroundColor Green
